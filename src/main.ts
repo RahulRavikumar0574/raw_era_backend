@@ -7,23 +7,13 @@ import * as bodyParser from 'body-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS configuration
-  const allowedOrigins = [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    'https://souled-store.vercel.app',
-    'https://raw-era-frontend.vercel.app'
-  ];
+  // CORS configuration - Allow all origins for deployment
   app.enableCors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
+    origin: true, // Allow all origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
   });
 
   // Cookie parsing for httpOnly JWT cookies
