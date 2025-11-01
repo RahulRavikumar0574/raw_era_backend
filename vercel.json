@@ -4,14 +4,14 @@
   "installCommand": "npm install",
   "builds": [
     {
-      "src": "dist/main.js",
+      "src": "server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "dist/main.js",
+      "dest": "server.js",
       "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
