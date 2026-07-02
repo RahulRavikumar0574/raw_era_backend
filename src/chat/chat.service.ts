@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChatToolsService } from './tools/chat-tools.service';
 import knowledgeBase from './data/knowledge-base.json';
 interface KnowledgeEntry {
   id: string;
@@ -10,20 +11,23 @@ interface KnowledgeEntry {
 }
 
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   imageData?: string;
   imageType?: string;
+  tool_call_id?: string;
 }
 
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
   private readonly knowledge: KnowledgeEntry[] = knowledgeBase as KnowledgeEntry[];
+  private conversationContext: Map<string, any> = new Map();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly chatTools: ChatToolsService,
   ) {
     console.log("knowledgeBase =", knowledgeBase);
     console.log("Array?", Array.isArray(knowledgeBase));
@@ -35,24 +39,48 @@ export class ChatService {
     const lastMessageContent = lastUserMessage?.content ?? '';
     const hasImage = !!lastUserMessage?.imageData;
 
-    const retrievedDocs = this.retrieveRelevantDocs(lastMessageContent);
-    const productContext = await this.searchProducts(lastMessageContent);
-    const similarProducts = productContext.length
-      ? await this.findSimilarProducts(productContext[0])
-      : [];
+    // Initialize or retrieve conversation context
+    const effectiveSessionId = sessionId ?? this.generateSessionId();
+    if (!this.conversationContext.has(effectiveSessionId)) {
+      this.conversationContext.set(effectiveSessionId, {
+        mentionedProducts: [],
+      });
+    }
+    const context = this.conversationContext.get(effectiveSessionId);
 
-    const systemPrompt = this.buildSystemPrompt(retrievedDocs, productContext, similarProducts, hasImage);
+    const retrievedDocs = this.retrieveRelevantDocs(lastMessageContent);
+
+    const systemPrompt = this.buildToolCallingSystemPrompt(retrievedDocs, hasImage);
 
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
-    if (!apiKey) {
-      return {
-        message: this.fallbackResponse(retrievedDocs, productContext, hasImage),
-        sessionId: sessionId ?? this.generateSessionId(),
-        sources: retrievedDocs.map((d) => d.id),
-      };
-    }
 
-    const model = this.config.get<string>('OPENAI_MODEL') ?? 'gpt-5.5';
+if (!apiKey) {
+  this.logger.error('OPENAI_API_KEY not found');
+  return {
+    message: this.fallbackResponse(retrievedDocs),
+    sessionId: effectiveSessionId,
+    sources: retrievedDocs.map((d) => d.id),
+  };
+}
+
+    const model = this.config.get<string>('OPENAI_MODEL') ?? 'gpt-4o';
+
+    console.log("========== OPENAI CONFIG ==========");
+    console.log("API Key exists:", !!apiKey);
+    console.log("Model:", model);
+    console.log("===================================");
+
+  
+
+    // Define tools for OpenAI
+    const tools = this.getToolDefinitions();
+
+    console.log('\n========== OPENAI REQUEST CONFIG ==========');
+    console.log('Model:', model);
+    console.log('Tools count:', tools.length);
+    console.log('Tool names:', tools.map((t: any) => t.function.name));
+    console.log('Tool choice: auto');
+    console.log('==========================================\n');
 
     // Convert messages to OpenAI format with vision support
     const openaiMessages = messages.slice(-10).map((msg) => {
@@ -74,51 +102,123 @@ export class ChatService {
     });
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'system', content: systemPrompt }, ...openaiMessages],
-          temperature: 0.3,
-          max_tokens: 800,
-        }),
-      });
+      // Tool-calling loop
+      let finalMessages = [{ role: 'system', content: systemPrompt }, ...openaiMessages];
+      let maxIterations = 5;
+      let iteration = 0;
 
-      if (!response.ok) {
-        const err = await response.text();
-        this.logger.error(`OpenAI API error: ${err}`);
-        return {
-          message: this.fallbackResponse(retrievedDocs, productContext, hasImage),
-          sessionId: sessionId ?? this.generateSessionId(),
-          sources: retrievedDocs.map((d) => d.id),
+      while (iteration < maxIterations) {
+        iteration++;
+
+        const requestBody = {
+          model,
+          messages: finalMessages,
+          tools,
+          tool_choice: 'auto',
+          temperature: 0.7,
+          max_tokens: 800,
         };
+
+        console.log('\n========== OPENAI REQUEST BODY ==========');
+        console.log('Iteration:', iteration);
+        console.log('Messages count:', finalMessages.length);
+        const lastMsg = finalMessages[finalMessages.length - 1];
+        const lastMsgContent = typeof lastMsg?.content === 'string' ? lastMsg.content.substring(0, 100) : 'Array content (image)';
+        console.log('Last user message:', lastMsgContent);
+        console.log('Request body:', JSON.stringify(requestBody, null, 2));
+        console.log('==========================================\n');
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const err = await response.text();
+          this.logger.error(`OpenAI API error: ${err}`);
+          return {
+            message: this.fallbackResponse(retrievedDocs),
+            sessionId: effectiveSessionId,
+            sources: retrievedDocs.map((d) => d.id),
+          };
+        }
+
+        const data = await response.json();
+        const assistantMessage = data.choices?.[0]?.message;
+
+        console.log('\n========== OPENAI RESPONSE ==========');
+        console.log('Status:', response.status);
+        console.log('Has tool_calls:', !!(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0));
+        if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+          console.log('Tool calls:', assistantMessage.tool_calls.map((tc: any) => ({
+            id: tc.id,
+            function: tc.function.name,
+            args: tc.function.arguments
+          })));
+        }
+        console.log('Assistant message content:', assistantMessage?.content?.substring(0, 200) || 'No content');
+        console.log('Full response:', JSON.stringify(data, null, 2));
+        console.log('=====================================\n');
+
+        if (!assistantMessage) {
+          return {
+            message: this.fallbackResponse(retrievedDocs),
+            sessionId: effectiveSessionId,
+            sources: retrievedDocs.map((d) => d.id),
+          };
+        }
+
+        // If no tool calls, return the response
+        if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+          console.log('⚠️  NO TOOL CALLS RETURNED - GPT responded directly without using tools');
+          // Update context if products were mentioned
+          const content = assistantMessage.content || '';
+          this.updateContextFromResponse(content, context);
+
+          return {
+            message: assistantMessage.content?.trim() || this.fallbackResponse(retrievedDocs),
+            sessionId: effectiveSessionId,
+            sources: retrievedDocs.map((d) => d.id),
+          };
+        }
+
+        console.log('✓ Tool calls detected, executing tools...');
+        // Execute tool calls
+        finalMessages.push(assistantMessage);
+
+        const toolResults = await this.executeToolCalls(assistantMessage.tool_calls, context);
+
+        console.log('\n========== TOOL EXECUTION RESULTS ==========');
+        console.log('Tool results:', JSON.stringify(toolResults, null, 2));
+        console.log('============================================\n');
+
+        // Append tool results to messages
+        for (const toolCall of assistantMessage.tool_calls) {
+          const result = toolResults[toolCall.id];
+          finalMessages.push({
+            role: 'tool' as const,
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(result),
+          } as any);
+        }
       }
 
-      const data = await response.json();
-      const assistantMessage =
-        data.choices?.[0]?.message?.content?.trim() ??
-        this.fallbackResponse(retrievedDocs, productContext, hasImage);
-
+      // Max iterations reached, return last response
+      const lastMessage = finalMessages[finalMessages.length - 1];
       return {
-        message: assistantMessage,
-        sessionId: sessionId ?? this.generateSessionId(),
+        message: typeof lastMessage === 'string' ? lastMessage : (lastMessage as any).content || this.fallbackResponse(retrievedDocs),
+        sessionId: effectiveSessionId,
         sources: retrievedDocs.map((d) => d.id),
-        suggestedProducts: similarProducts.slice(0, 3).map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          image: p.images[0]?.url,
-        })),
       };
     } catch (error) {
       this.logger.error('Chat completion failed', error);
       return {
-        message: this.fallbackResponse(retrievedDocs, productContext, hasImage),
-        sessionId: sessionId ?? this.generateSessionId(),
+        message: this.fallbackResponse(retrievedDocs),
+        sessionId: effectiveSessionId,
         sources: retrievedDocs.map((d) => d.id),
       };
     }
@@ -151,132 +251,308 @@ export class ChatService {
       .map((s) => s.entry);
   }
 
-  private async searchProducts(query: string) {
-    const words = query
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-
-    if (words.length === 0) return [];
-
-    const products = await this.prisma.product.findMany({
-      where: {
-        isActive: true,
-        OR: words.flatMap((word) => [
-          { name: { contains: word, mode: 'insensitive' as const } },
-          { description: { contains: word, mode: 'insensitive' as const } },
-          { brand: { contains: word, mode: 'insensitive' as const } },
-        ]),
+  /**
+   * Get OpenAI tool definitions for function calling
+   */
+  private getToolDefinitions() {
+    return [
+      {
+        type: 'function',
+        function: {
+          name: 'searchProducts',
+          description: 'Search for products by name, category, description, or tags. Returns product details including price, stock, and variants.',
+          parameters: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'string',
+                description: 'Search query - product name, category, or keywords',
+              },
+              categoryId: {
+                type: 'string',
+                description: 'Optional: Filter by category ID',
+              },
+              minPrice: {
+                type: 'number',
+                description: 'Optional: Minimum price filter',
+              },
+              maxPrice: {
+                type: 'number',
+                description: 'Optional: Maximum price filter',
+              },
+              inStock: {
+                type: 'boolean',
+                description: 'Optional: Only show in-stock items',
+              },
+            },
+            required: ['query'],
+          },
+        },
       },
-      include: {
-        images: { where: { isPrimary: true }, take: 1 },
-        variants: true,
-        specifications: true,
-        category: true,
+      {
+        type: 'function',
+        function: {
+          name: 'getProductInventory',
+          description: 'Get live inventory data for a specific product including available sizes, colors, and stock levels.',
+          parameters: {
+            type: 'object',
+            properties: {
+              productId: {
+                type: 'string',
+                description: 'Product ID to check inventory for',
+              },
+            },
+            required: ['productId'],
+          },
+        },
       },
-      take: 3,
-    });
-
-    return products;
+      {
+        type: 'function',
+        function: {
+          name: 'getProductPricing',
+          description: 'Get current pricing information including discounts, sale prices, and variant-specific pricing.',
+          parameters: {
+            type: 'object',
+            properties: {
+              productId: {
+                type: 'string',
+                description: 'Product ID to get pricing for',
+              },
+            },
+            required: ['productId'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'getActiveCoupons',
+          description: 'Get list of currently active coupons and discount codes.',
+          parameters: {
+            type: 'object',
+            properties: {},
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'getShippingInfo',
+          description: 'Get shipping configuration including costs and delivery timelines.',
+          parameters: {
+            type: 'object',
+            properties: {},
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'getOrderStatus',
+          description: 'Get order status and tracking information by order number.',
+          parameters: {
+            type: 'object',
+            properties: {
+              orderId: {
+                type: 'string',
+                description: 'Order number (e.g., ORD12345)',
+              },
+            },
+            required: ['orderId'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'getRecommendations',
+          description: 'Get product recommendations based on context. Can recommend similar products, items in a category, or based on a query.',
+          parameters: {
+            type: 'object',
+            properties: {
+              productId: {
+                type: 'string',
+                description: 'Optional: Get products similar to this product ID',
+              },
+              category: {
+                type: 'string',
+                description: 'Optional: Get recommendations from this category',
+              },
+              query: {
+                type: 'string',
+                description: 'Optional: Search-based recommendations',
+              },
+              limit: {
+                type: 'number',
+                description: 'Optional: Number of recommendations to return (default: 5)',
+              },
+            },
+          },
+        },
+      },
+    ];
   }
 
-  private async findSimilarProducts(product: {
-    id: string;
-    categoryId: string;
-    price: number;
-  }) {
-    return this.prisma.product.findMany({
-      where: {
-        isActive: true,
-        id: { not: product.id },
-        categoryId: product.categoryId,
-        price: { gte: product.price * 0.7, lte: product.price * 1.3 },
-      },
-      include: { images: { where: { isPrimary: true }, take: 1 } },
-      take: 4,
-    });
+  /**
+   * Execute tool calls requested by OpenAI
+   */
+  private async executeToolCalls(toolCalls: any[], context: any) {
+    const results: Record<string, any> = {};
+
+    for (const toolCall of toolCalls) {
+      const functionName = toolCall.function.name;
+      const args = JSON.parse(toolCall.function.arguments || '{}');
+
+      try {
+        let result;
+        switch (functionName) {
+          case 'searchProducts':
+            result = await this.chatTools.searchProducts(args.query, {
+              categoryId: args.categoryId,
+              minPrice: args.minPrice,
+              maxPrice: args.maxPrice,
+              inStock: args.inStock,
+            });
+            // Update context with found products
+            if (result.length > 0) {
+              context.mentionedProducts = result.map((p: any) => ({ id: p.id, name: p.name }));
+            }
+            break;
+          case 'getProductInventory':
+            result = await this.chatTools.getProductInventory(args.productId);
+            break;
+          case 'getProductPricing':
+            result = await this.chatTools.getProductPricing(args.productId);
+            break;
+          case 'getActiveCoupons':
+            result = await this.chatTools.getActiveCoupons();
+            break;
+          case 'getShippingInfo':
+            result = await this.chatTools.getShippingInfo();
+            break;
+          case 'getOrderStatus':
+            result = await this.chatTools.getOrderStatus(args.orderId);
+            break;
+          case 'getRecommendations':
+            result = await this.chatTools.getRecommendations({
+              productId: args.productId,
+              category: args.category,
+              query: args.query,
+              limit: args.limit || 5,
+            });
+            break;
+          default:
+            result = { error: `Unknown function: ${functionName}` };
+        }
+        results[toolCall.id] = result;
+      } catch (error) {
+        this.logger.error(`Tool execution error for ${functionName}:`, error);
+        results[toolCall.id] = { error: `Failed to execute ${functionName}: ${error}` };
+      }
+    }
+
+    return results;
   }
 
-  private buildSystemPrompt(
-    docs: KnowledgeEntry[],
-    products: Awaited<ReturnType<typeof this.searchProducts>>,
-    similar: Awaited<ReturnType<typeof this.findSimilarProducts>>,
-    hasImage?: boolean,
-  ): string {
+  /**
+   * Update conversation context from response
+   */
+  private updateContextFromResponse(content: string, context: any) {
+    // Extract product names mentioned in response
+    const productPattern = /(?:product|item|style|hoodie|t-shirt|shirt|tee|jacket|pants|jeans)/gi;
+    if (productPattern.test(content)) {
+      // Context is already updated by tool execution
+      // This is a fallback for cases where tools weren't called
+    }
+  }
+
+  /**
+   * Build system prompt for tool-calling architecture
+   */
+  private buildToolCallingSystemPrompt(docs: KnowledgeEntry[], hasImage?: boolean): string {
     const docContext =
       docs.length > 0
         ? docs.map((d) => `[${d.category}] ${d.content}`).join('\n\n')
         : 'No specific FAQ documents matched this query.';
 
-    let productContext = '';
-    if (products.length > 0) {
-      productContext = products
-        .map((p) => {
-          const sizes = p.variants.filter((v) => v.type === 'SIZE').map((v) => v.value);
-          const colors = p.variants.filter((v) => v.type === 'COLOR').map((v) => v.value);
-          const materials = p.variants.filter((v) => v.type === 'MATERIAL').map((v) => v.value);
-          const specs = p.specifications.map((s) => `${s.name}: ${s.value}`).join(', ');
-          return `Product: ${p.name}
-Price: ₹${p.price}
-Stock: ${p.stock}
-Description: ${p.shortDescription || p.description.slice(0, 200)}
-Available Sizes: ${sizes.length ? sizes.join(', ') : 'Check product page'}
-Available Colors: ${colors.length ? colors.join(', ') : 'Check product page'}
-Material: ${materials.length ? materials.join(', ') : specs || 'See product specifications'}
-Category: ${p.category.name}`;
-        })
-        .join('\n\n');
-    }
-
-    let similarContext = '';
-    if (similar.length > 0) {
-      similarContext = `\nSimilar products you may recommend:\n${similar.map((p) => `- ${p.name} (₹${p.price})`).join('\n')}`;
-    }
-
     const imageInstructions = hasImage ? `
-IMAGE ANALYSIS:
-The user has uploaded an image for customization analysis. When analyzing images:
-- Recommend the most suitable printing method (screen printing, DTG, embroidery) based on design complexity
-- Suggest appropriate garment types (t-shirts, hoodies, polo shirts)
-- Recommend print size based on design dimensions
-- Provide customization estimate if possible (screen printing: ₹50-150/piece, embroidery: ₹100-300/piece)
-- Mention minimum order requirements (5 pieces for printing, 3 for embroidery)
-- Suggest turnaround time (7-10 business days for printing, 3-5 extra days for embroidery)
+IMAGE ANALYSIS INSTRUCTIONS:
+The user has uploaded an image. Use GPT Vision to:
+1. Identify the garment type (t-shirt, hoodie, polo, etc.)
+2. Identify colors in the design
+3. Identify print style (logo, graphic, text, pattern)
+4. Identify logo placement (chest, back, sleeve, all-over)
+5. Estimate print size
+
+Then use the searchProducts tool to find SIMILAR items in the catalog.
+ONLY recommend products that actually exist in the database.
+Do not invent products or suggest items not found in the catalog.
 ` : '';
 
-    return `You are a friendly and professional customer support representative for "The Raw Era", a premium fashion ecommerce store in India.
+    return `You are a knowledgeable and friendly fashion consultant for "The Raw Era", a premium fashion ecommerce store in India.
 
-RULES:
-1. ONLY answer using the knowledge base and product data provided below.
-2. If you don't have enough information, politely say you don't know and suggest contacting Info@rawera.com or +91 99468 12233.
-3. NEVER make up product details, prices, sizes, colors, or policies.
-4. Be concise, helpful, and warm. Use INR (₹) for prices.
-5. Remember the conversation context for follow-up questions.
-6. For product questions, use the exact product data provided.
-7. You can suggest similar products when relevant.
-${hasImage ? '8. When analyzing images, provide specific recommendations for printing methods and customization options.' : ''}
+CRITICAL RULE - TOOL USAGE IS MANDATORY:
+When users ask about products, clothing, items, styles, or anything related to the catalog:
+- You MUST use the searchProducts tool
+- Do NOT answer from general knowledge
+- Do NOT answer from the knowledge base for product-related questions
+- The knowledge base is ONLY for policies (returns, refunds, contact, shipping policies)
 
-KNOWLEDGE BASE:
+EXAMPLES OF QUERIES THAT REQUIRE searchProducts:
+- "show me hoodies"
+- "do you have t-shirts"
+- "oversized tees"
+- "black tshirts"
+- "gym wear"
+- "what products do you have"
+- "show me [any clothing item]"
+- "do you sell [any product]"
+- "[product name] in [size/color]"
+
+EXAMPLES OF QUERIES THAT USE KNOWLEDGE BASE (no tools needed):
+- "what is your return policy"
+- "how do I get a refund"
+- "contact information"
+- "shipping policy"
+- "customization policy"
+
+AVAILABLE TOOLS:
+- searchProducts: Find products by name, category, description, or tags (USE THIS FOR ALL PRODUCT QUERIES)
+- getProductInventory: Check live inventory for sizes, colors, and stock
+- getProductPricing: Get current prices, discounts, and sale information
+- getActiveCoupons: Retrieve active discount codes
+- getShippingInfo: Get shipping costs and delivery timelines
+- getOrderStatus: Track order by order number
+- getRecommendations: Get product recommendations
+
+TOOL USAGE RULES:
+1. For ANY product-related question: ALWAYS call searchProducts first
+2. For inventory/size/color questions: Use getProductInventory (after getting product ID from searchProducts)
+3. For pricing questions: Use getProductPricing (after getting product ID from searchProducts)
+4. For coupon questions: Use getActiveCoupons
+5. For shipping questions: Use getShippingInfo
+6. For order tracking: Use getOrderStatus
+7. For recommendations: Use getRecommendations
+8. For policy questions (returns, refunds, contact): Use the KNOWLEDGE BASE below - DO NOT call tools
+
+KNOWLEDGE BASE (for policies and company info ONLY - NOT for products):
 ${docContext}
 
-${productContext ? `PRODUCT DATA:\n${productContext}` : ''}
-${similarContext}
 ${imageInstructions}
 
-Topics you help with: products, sizes, colors, materials, shipping, returns, refunds, bulk orders, custom printing, embroidery, order tracking, payments, delivery timelines, coupons, and contact information.`;
+RESPONSE GUIDELINES:
+- Be warm, professional, and helpful
+- Use INR (₹) for all prices
+- Mention stock availability when relevant
+- Suggest alternatives if requested item is unavailable
+- Explain why you're recommending certain products
+- If multiple products match, ask which one they're interested in
+- For follow-up questions about "the second one" or similar, reference the conversation history
+- When tools return data, present it naturally to the user
+- Don't show raw JSON or database fields to the user`;
   }
 
-  private fallbackResponse(docs: KnowledgeEntry[], products: Awaited<ReturnType<typeof this.searchProducts>>, hasImage?: boolean) {
-    if (hasImage) {
-      return "I've analyzed your image. Based on the design, I recommend screen printing for this artwork. It's suitable for cotton and polyester blends. For best results, I suggest printing on t-shirts or hoodies with a print size of 8-10 inches. For accurate pricing, please submit a customization request with your specifications.";
-    }
-    if (products.length > 0) {
-      const p = products[0];
-      const sizes = p.variants.filter((v) => v.type === 'SIZE').map((v) => v.value);
-      const colors = p.variants.filter((v) => v.type === 'COLOR').map((v) => v.value);
-      return `Here's what I found about **${p.name}**:\n\n• Price: ₹${p.price}\n• Stock: ${p.stock} units\n• Sizes: ${sizes.length ? sizes.join(', ') : 'See product page'}\n• Colors: ${colors.length ? colors.join(', ') : 'See product page'}\n\n${p.shortDescription || p.description.slice(0, 150)}`;
-    }
+  private fallbackResponse(docs: KnowledgeEntry[]) {
     if (docs.length > 0) {
       return docs[0].content;
     }
