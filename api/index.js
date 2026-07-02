@@ -6,8 +6,7 @@ let cachedServer;
 async function bootstrapServer() {
   if (!cachedServer) {
     const app = await NestFactory.create(AppModule);
-    
-    // Explicit CORS Configuration matching our production requirements
+
     app.enableCors({
       origin: [
         'https://raw-era-frontend.vercel.app',
@@ -17,7 +16,6 @@ async function bootstrapServer() {
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-      exposedHeaders: ['Set-Cookie'],
     });
 
     await app.init();
@@ -27,6 +25,28 @@ async function bootstrapServer() {
 }
 
 module.exports = async (req, res) => {
-  const server = await bootstrapServer();
-  return server(req, res);
+  // Handle options preflight immediately just in case
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', 'https://raw-era-frontend.vercel.app');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    return res.status(200).end();
+  }
+
+  try {
+    const server = await bootstrapServer();
+    return server(req, res);
+  } catch (error) {
+    console.error("CRITICAL NESTJS BOOTSTRAP ERROR:", error);
+
+    // Force allow CORS headers so the browser can actually display this error text
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.status(500).json({
+      message: "NestJS Bootstrap Failed on Vercel Serverless Function",
+      error: error.message,
+      stack: error.stack,
+      hint: "Check if a dependency, schema engine initialization, or database connection is throwing an unhandled promise rejection."
+    });
+  }
 };
