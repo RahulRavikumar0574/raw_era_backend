@@ -1,4 +1,5 @@
 const { NestFactory } = require('@nestjs/core');
+const path = require('path');
 
 let cachedServer;
 
@@ -16,8 +17,10 @@ async function bootstrapServer() {
 
   let AppModule;
   try {
-    console.log("[BOOT] Dynamically loading AppModule...");
-    AppModule = require('../dist/src/app.module').AppModule;
+    console.log("[BOOT] Dynamically loading AppModule with absolute resolution...");
+    // Force absolute path resolution inside Vercel's task runner directory
+    const appModulePath = path.join(process.cwd(), 'dist', 'src', 'app.module');
+    AppModule = require(appModulePath).AppModule;
     console.log("[BOOT] AppModule successfully required.");
   } catch (requireError) {
     console.error("[CRITICAL] Failed to require AppModule dynamic target:", requireError);
