@@ -30,11 +30,12 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  orders    Order[]
-  reviews   Review[]
-  wishlist  WishlistItem[]
-  cart      CartItem[]
-  addresses Address[]
+  orders                 Order[]
+  reviews                Review[]
+  wishlist               WishlistItem[]
+  cart                   CartItem[]
+  addresses              Address[]
+  customizationRequests  CustomizationRequest[]
 
   @@map("users")
 }
@@ -95,8 +96,9 @@ model Product {
   tags           ProductTag[]
   reviews        Review[]
   orderItems     OrderItem[]
-  cartItems      CartItem[]
-  wishlistItems  WishlistItem[]
+  cartItems              CartItem[]
+  wishlistItems          WishlistItem[]
+  customizationRequests  CustomizationRequest[]
 
   @@map("products")
 }
@@ -345,4 +347,46 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+// Customization Requests
+model CustomizationRequest {
+  id              String                     @id @default(cuid())
+  customerId      String?
+  customer        User?                      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  productId       String?
+  product         Product?                   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  description     String
+  additionalNotes String?
+  status          CustomizationRequestStatus @default(PENDING)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  images CustomizationImage[]
+
+  @@map("customization_requests")
+}
+
+enum CustomizationRequestStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model CustomizationImage {
+  id        String               @id @default(cuid())
+  requestId String
+  request   CustomizationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  url       String
+  publicId  String
+  fileName  String
+  createdAt DateTime             @default(now())
+
+  @@map("customization_images")
 }

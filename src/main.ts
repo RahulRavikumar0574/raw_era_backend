@@ -16,8 +16,11 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
 
+  console.log("cookieParser =", cookieParser);
+  console.log("typeof =", typeof cookieParser);
+  console.log("default =", (cookieParser as any).default);
   // Cookie parsing for httpOnly JWT cookies
-  app.use(cookieParser());
+  app.use(cookieParser.default());
 
   // Webhooks raw body (Razorpay + Stripe)
   app.use('/payments/webhook', bodyParser.raw({ type: '*/*' }));

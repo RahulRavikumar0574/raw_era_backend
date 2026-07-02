@@ -1,0 +1,86 @@
+[
+  {
+    "id": "shipping-overview",
+    "category": "shipping",
+    "keywords": ["shipping", "delivery", "ship", "dispatch", "courier"],
+    "content": "The Raw Era ships across India. Standard delivery takes 5-7 business days. Express delivery (2-3 business days) is available in select metro cities. Free shipping on orders above ₹999."
+  },
+  {
+    "id": "shipping-timeline",
+    "category": "shipping",
+    "keywords": ["how long", "delivery time", "timeline", "when will i receive", "arrive"],
+    "content": "Orders are processed within 1-2 business days. Standard delivery: 5-7 business days. Express delivery: 2-3 business days. You will receive tracking details via email once your order ships."
+  },
+  {
+    "id": "returns-policy",
+    "category": "returns",
+    "keywords": ["return", "returns", "exchange", "send back"],
+    "content": "You can return any unused item within 30 days of delivery. Items must be unworn, unwashed, and in original packaging with tags attached. Customized or personalized items are not eligible for return unless defective."
+  },
+  {
+    "id": "refunds-policy",
+    "category": "refunds",
+    "keywords": ["refund", "money back", "reimbursement", "refund time"],
+    "content": "Refunds are processed within 5-7 business days after we receive and inspect your returned item. The amount is credited to your original payment method. COD orders receive refunds via bank transfer."
+  },
+  {
+    "id": "bulk-orders",
+    "category": "bulk",
+    "keywords": ["bulk", "wholesale", "large order", "corporate", "team order"],
+    "content": "We offer bulk order discounts for orders of 25+ pieces. Contact us at Info@rawera.com or call +91 99468 12233. Bulk orders typically take 10-15 business days depending on customization requirements."
+  },
+  {
+    "id": "custom-printing",
+    "category": "customization",
+    "keywords": ["custom print", "printing", "custom design", "logo print", "screen print"],
+    "content": "Custom printing is available on most apparel. Upload your reference images via our customization form. Minimum order for custom printing is 5 pieces. Turnaround time is 7-10 business days after design approval."
+  },
+  {
+    "id": "embroidery",
+    "category": "customization",
+    "keywords": ["embroidery", "embroidered", "stitch", "monogram"],
+    "content": "Embroidery services are available for logos, names, and designs. Minimum order is 3 pieces. Embroidery adds 3-5 business days to production time. Submit your design through the customization request form."
+  },
+  {
+    "id": "order-tracking",
+    "category": "orders",
+    "keywords": ["track", "tracking", "order status", "where is my order", "track order"],
+    "content": "Track your order using the 'Track Order' link in the header with your order number and email. You will also receive SMS and email updates when your order is shipped."
+  },
+  {
+    "id": "payment-methods",
+    "category": "payment",
+    "keywords": ["payment", "pay", "upi", "card", "cod", "cash on delivery", "razorpay"],
+    "content": "We accept UPI, credit/debit cards, net banking, wallets, and Cash on Delivery (COD) for orders up to ₹5,000. All online payments are secured via Razorpay and Stripe."
+  },
+  {
+    "id": "coupons",
+    "category": "coupons",
+    "keywords": ["coupon", "discount code", "promo", "offer", "voucher"],
+    "content": "Apply coupon codes at checkout. Each coupon has specific terms including minimum order value and validity period. Only one coupon can be applied per order. Check our homepage for current offers."
+  },
+  {
+    "id": "contact-info",
+    "category": "contact",
+    "keywords": ["contact", "phone", "email", "support", "help", "customer service"],
+    "content": "Contact The Raw Era: Phone: +91 99468 12233 | Email: Info@rawera.com | Address: Mumbai, Maharashtra, India. Support hours: Mon-Sat, 10 AM - 7 PM IST."
+  },
+  {
+    "id": "sizes-guide",
+    "category": "sizes",
+    "keywords": ["size", "sizes", "sizing", "fit", "measurement", "size chart"],
+    "content": "We offer sizes XS, S, M, L, XL, XXL for most products. Each product page shows available sizes and a size guide. If you ask about a specific product, I can check its available sizes from our catalog."
+  },
+  {
+    "id": "materials",
+    "category": "material",
+    "keywords": ["material", "fabric", "cotton", "polyester", "blend", "what is it made of"],
+    "content": "Our products use premium materials including 100% cotton, cotton-poly blends, and performance fabrics. Material details are listed on each product page and in product specifications."
+  },
+  {
+    "id": "colors",
+    "category": "colors",
+    "keywords": ["color", "colour", "colors", "available colors", "shade"],
+    "content": "Color availability varies by product. Check the product page for available color options, or ask me about a specific product and I will look up its available colors from our inventory."
+  }
+]

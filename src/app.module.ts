@@ -16,6 +16,8 @@ import { AddressModule } from './address/address.module';
 import { CouponModule } from './coupon/coupon.module';
 import { SettingsModule } from './settings/settings.module';
 import { CorsMiddleware } from './middleware/cors.middleware';
+import { ChatModule } from './chat/chat.module';
+import { CustomizationModule } from './customization/customization.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { CorsMiddleware } from './middleware/cors.middleware';
     AddressModule,
     CouponModule,
     SettingsModule,
+    ChatModule,
+    CustomizationModule,
   ],
   controllers: [AppController],
   providers: [
