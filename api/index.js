@@ -1,5 +1,6 @@
 const { NestFactory } = require('@nestjs/core');
-const { AppModule } = require('./dist/src/app.module');
+const path = require('path');
+const fs = require('fs');
 
 let appContext;
 let chatService;
@@ -7,6 +8,19 @@ let chatService;
 async function getChatService() {
   if (!appContext) {
     console.log("[SERVERLESS BOOT] Initializing micro NestJS Application Context...");
+    
+    // Debug path resolution
+    console.log("[DEBUG] __dirname:", __dirname);
+    console.log("[DEBUG] process.cwd():", process.cwd());
+    
+    // Resolve app.module path robustly
+    const appModulePath = path.join(__dirname, '..', 'dist', 'src', 'app.module');
+    console.log("[DEBUG] Resolved app.module path:", appModulePath);
+    console.log("[DEBUG] File exists:", fs.existsSync(appModulePath));
+    
+    // Load AppModule
+    const { AppModule } = require(appModulePath);
+    
     // Boot up purely the DI container without Express or any HTTP layer overhead
     appContext = await NestFactory.createApplicationContext(AppModule, { logger: false });
     
