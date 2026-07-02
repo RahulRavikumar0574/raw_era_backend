@@ -1,5 +1,11 @@
 const { NestFactory } = require('@nestjs/core');
-const path = require('path');
+
+// 1. Force Vercel's static analysis bundler to notice and include the compiled NestJS source files
+try {
+  if (false) {
+    require('../dist/src/app.module');
+  }
+} catch (e) {}
 
 let cachedServer;
 
@@ -13,17 +19,15 @@ async function bootstrapServer() {
       throw new Error(`[SANITY FAIL] Missing critical environment variable: ${key}`);
     }
   }
-  console.log("[SANITY] Crucial environment variables verified.");
 
   let AppModule;
   try {
-    console.log("[BOOT] Dynamically loading AppModule with absolute resolution...");
-    // Force absolute path resolution inside Vercel's task runner directory
-    const appModulePath = path.join(process.cwd(), 'dist', 'src', 'app.module');
-    AppModule = require(appModulePath).AppModule;
+    console.log("[BOOT] Loading AppModule...");
+    // Using the explicit relative path that matches what Vercel traced
+    AppModule = require('../dist/src/app.module').AppModule;
     console.log("[BOOT] AppModule successfully required.");
   } catch (requireError) {
-    console.error("[CRITICAL] Failed to require AppModule dynamic target:", requireError);
+    console.error("[CRITICAL] Failed to require AppModule:", requireError);
     throw new Error(`Module Resolution Failure: ${requireError.message}`);
   }
 
@@ -46,7 +50,6 @@ async function bootstrapServer() {
 }
 
 module.exports = async (req, res) => {
-  // Handle edge preflight immediately
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', 'https://raw-era-frontend.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
@@ -66,8 +69,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({
       message: "NestJS Bootstrap Failed within dynamic wrapper execution window.",
       error: error.message,
-      stack: error.stack,
-      hint: "Review module dependency chains, Prisma client instantiation, or asynchronous providers."
+      stack: error.stack
     });
   }
 };
