@@ -4,9 +4,8 @@ const fs = require('fs');
 
 const projectRoot = path.resolve(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
-const appModulePath = path.join(distDir, 'src', 'app.module.js');
-const chatServicePath = path.join(distDir, 'src', 'chat', 'chat.service.js');
-
+const appModulePath = path.join(distDir, 'app.module.js');
+const chatServicePath = path.join(distDir, 'chat', 'chat.service.js');
 let appContext;
 let chatService;
 
@@ -35,7 +34,8 @@ async function getChatService() {
 
   logDir('projectRoot', projectRoot);
   logDir('distDir', distDir);
-  logDir('dist/src', path.join(distDir, 'src'));
+  logDir('dist', distDir);
+  logDir('dist/chat', path.join(distDir, 'chat'));
 
   if (!fs.existsSync(appModulePath)) {
     throw new Error(`AppModule not found at ${appModulePath}`);
