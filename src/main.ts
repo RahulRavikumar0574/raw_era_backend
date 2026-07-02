@@ -7,6 +7,7 @@ import serverlessExpress from '@vendia/serverless-express';
 import { Callback, Context, Handler } from 'aws-lambda';
 
 let cachedApp: any;
+let cachedServer: Handler;
 
 async function bootstrap() {
   if (!cachedApp) {
@@ -25,9 +26,6 @@ async function bootstrap() {
       exposedHeaders: ['Set-Cookie'],
     });
 
-    console.log("cookieParser =", cookieParser);
-    console.log("typeof =", typeof cookieParser);
-    console.log("default =", (cookieParser as any).default);
     // Cookie parsing for httpOnly JWT cookies
     app.use(cookieParser.default());
 
@@ -73,9 +71,11 @@ if (require.main === module) {
 // For Vercel serverless
 export const handler: Handler = async (event: any, context: Context, callback: Callback) => {
   try {
-    const app = await bootstrap();
-    const server = serverlessExpress({ app });
-    return server(event, context, callback);
+    if (!cachedServer) {
+      const app = await bootstrap();
+      cachedServer = serverlessExpress({ app: app.getHttpAdapter().getInstance() });
+    }
+    return cachedServer(event, context, callback);
   } catch (error) {
     console.error('Error in serverless handler:', error);
     return callback(error);
