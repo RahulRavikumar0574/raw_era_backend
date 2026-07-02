@@ -45,4 +45,8 @@ import { CustomizationModule } from './customization/customization.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  constructor() {
+    console.log("[PROVIDER] AppModule constructor executed");
+  }
+}

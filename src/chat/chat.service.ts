@@ -29,6 +29,7 @@ export class ChatService {
     private readonly config: ConfigService,
     private readonly chatTools: ChatToolsService,
   ) {
+    console.log("[PROVIDER] ChatService constructor executed");
     console.log("knowledgeBase =", knowledgeBase);
     console.log("Array?", Array.isArray(knowledgeBase));
   }

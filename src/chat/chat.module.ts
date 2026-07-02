@@ -9,4 +9,8 @@ import { ChatToolsService } from './tools/chat-tools.service';
   providers: [ChatService, ChatRateLimitGuard, ChatToolsService],
   exports: [ChatService],
 })
-export class ChatModule {}
+export class ChatModule {
+  constructor() {
+    console.log("[PROVIDER] ChatModule constructor executed");
+  }
+}
