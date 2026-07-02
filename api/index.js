@@ -1,31 +1,49 @@
 const { NestFactory } = require('@nestjs/core');
-const { AppModule } = require('../dist/src/app.module');
 
 let cachedServer;
 
 async function bootstrapServer() {
-  if (!cachedServer) {
-    const app = await NestFactory.create(AppModule);
+  if (cachedServer) return cachedServer;
 
-    app.enableCors({
-      origin: [
-        'https://raw-era-frontend.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:5173'
-      ],
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-    });
-
-    await app.init();
-    cachedServer = app.getHttpAdapter().getInstance();
+  console.log("[BOOT] Starting sanity checks...");
+  const criticalEnvVars = ["DATABASE_URL", "OPENAI_API_KEY", "JWT_ACCESS_TOKEN_SECRET"];
+  for (const key of criticalEnvVars) {
+    if (!process.env[key]) {
+      throw new Error(`[SANITY FAIL] Missing critical environment variable: ${key}`);
+    }
   }
+  console.log("[SANITY] Crucial environment variables verified.");
+
+  let AppModule;
+  try {
+    console.log("[BOOT] Dynamically loading AppModule...");
+    AppModule = require('../dist/src/app.module').AppModule;
+    console.log("[BOOT] AppModule successfully required.");
+  } catch (requireError) {
+    console.error("[CRITICAL] Failed to require AppModule dynamic target:", requireError);
+    throw new Error(`Module Resolution Failure: ${requireError.message}`);
+  }
+
+  const app = await NestFactory.create(AppModule);
+
+  app.enableCors({
+    origin: [
+      'https://raw-era-frontend.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:5173'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  });
+
+  await app.init();
+  cachedServer = app.getHttpAdapter().getInstance();
   return cachedServer;
 }
 
 module.exports = async (req, res) => {
-  // Handle options preflight immediately just in case
+  // Handle edge preflight immediately
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', 'https://raw-era-frontend.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
@@ -38,15 +56,15 @@ module.exports = async (req, res) => {
     const server = await bootstrapServer();
     return server(req, res);
   } catch (error) {
-    console.error("CRITICAL NESTJS BOOTSTRAP ERROR:", error);
+    console.error("CRITICAL NESTJS BOOTSTRAP FAILURE:", error);
 
-    // Force allow CORS headers so the browser can actually display this error text
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'application/json');
     return res.status(500).json({
-      message: "NestJS Bootstrap Failed on Vercel Serverless Function",
+      message: "NestJS Bootstrap Failed within dynamic wrapper execution window.",
       error: error.message,
       stack: error.stack,
-      hint: "Check if a dependency, schema engine initialization, or database connection is throwing an unhandled promise rejection."
+      hint: "Review module dependency chains, Prisma client instantiation, or asynchronous providers."
     });
   }
 };
