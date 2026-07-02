@@ -12,9 +12,13 @@ async function bootstrap() {
   if (!cachedApp) {
     const app = await NestFactory.create(AppModule);
 
-    // CORS configuration - Allow all origins for deployment
+    // CORS configuration - Allow specific origins for deployment and local development
     app.enableCors({
-      origin: true, // Allow all origins
+      origin: [
+        'https://raw-era-frontend.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:5173',
+      ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
