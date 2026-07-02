@@ -1,5 +1,5 @@
 const { NestFactory } = require('@nestjs/core');
-const { AppModule } = require('../dist/app.module');
+const { AppModule } = require('../dist/src/app.module');
 
 let cachedServer;
 
