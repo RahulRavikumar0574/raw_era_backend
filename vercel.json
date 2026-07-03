@@ -1,16 +1,21 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
-  "framework": null,
+  "version": 2,
+
   "functions": {
     "api/index.js": {
-      "includeFiles": "{dist/**,prisma/**}"
+      "runtime": "@vercel/node",
+      "includeFiles": [
+        "dist/**",
+        "prisma/**"
+      ]
     }
   },
-  "rewrites": [
+
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/api/index"
+      "src": "/(.*)",
+      "dest": "/api/index.js"
     }
   ]
 }

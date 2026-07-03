@@ -17,6 +17,8 @@ import { CouponModule } from './coupon/coupon.module';
 import { SettingsModule } from './settings/settings.module';
 import { ChatModule } from './chat/chat.module';
 import { CustomizationModule } from './customization/customization.module';
+import { UsersModule } from './users/users.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { CustomizationModule } from './customization/customization.module';
     SettingsModule,
     ChatModule,
     CustomizationModule,
+    UsersModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
