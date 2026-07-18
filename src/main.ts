@@ -59,7 +59,7 @@ async function bootstrap() {
 // For local development
 if (require.main === module) {
   bootstrap().then(() => {
-    const port = process.env.PORT ?? 4001;
+    const port = process.env.PORT ?? 4000;
     console.log(`Server is running on port ${port}`);
     cachedApp.listen(port);
   }).catch((error) => {

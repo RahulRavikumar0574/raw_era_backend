@@ -1,19 +1,28 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PaymentsService {
   private readonly razorpay?: Razorpay;
   private readonly stripe?: any;
 
-  constructor() {
+  constructor(public readonly prisma: PrismaService) {
+    console.log('PaymentsService: Initializing payment clients...');
+    console.log('PaymentsService: RAZORPAY_KEY_ID set:', !!process.env.RAZORPAY_KEY_ID);
+    console.log('PaymentsService: RAZORPAY_KEY_SECRET set:', !!process.env.RAZORPAY_KEY_SECRET);
+    
     if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
       this.razorpay = new Razorpay({
         key_id: process.env.RAZORPAY_KEY_ID as string,
         key_secret: process.env.RAZORPAY_KEY_SECRET as string,
       });
+      console.log('PaymentsService: Razorpay client initialized successfully.');
+    } else {
+      console.warn('PaymentsService: Razorpay credentials missing from env configuration.');
     }
+    
     if (process.env.STRIPE_SECRET_KEY) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -27,11 +36,19 @@ export class PaymentsService {
 
   // Razorpay
   async createOrder(amountInPaise: number, currency = 'INR', receipt?: string) {
-    if (!this.razorpay) throw new InternalServerErrorException('Razorpay not configured');
+    if (!this.razorpay) {
+      throw new InternalServerErrorException('Razorpay client not configured. Check backend .env variables.');
+    }
     try {
       const order = await this.razorpay.orders.create({ amount: amountInPaise, currency, receipt });
       return order;
     } catch (e: any) {
+      console.error("Razorpay Error Details:", e);
+      if (e?.statusCode === 401 || e?.error?.description?.includes('Authentication')) {
+        throw new InternalServerErrorException(
+          'Razorpay API authentication failed: The key_id or key_secret configured in backend .env is invalid.'
+        );
+      }
       throw new InternalServerErrorException(e?.message || 'Failed to create order');
     }
   }

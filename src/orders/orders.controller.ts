@@ -10,7 +10,10 @@ export class OrdersController {
   @Post()
   async create(@Req() req: any, @Body() body: any) {
     const userId = req.user.id;
-    const order = await this.ordersService.createCodOrder(userId, body);
+    const order = await this.ordersService.createOrder(userId, {
+      ...body,
+      paymentMethod: body.paymentMethod || 'COD',
+    });
     return { order };
   }
 

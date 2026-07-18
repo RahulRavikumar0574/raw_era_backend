@@ -5,15 +5,15 @@ import { PrismaService } from '../prisma/prisma.service';
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createCodOrder(userId: string, payload: { items: Array<{ productId: string; quantity: number; price: number; variantId?: string }>; shippingAddress: any; notes?: string; totals: { subtotal: number; tax: number; shipping: number; discount: number; total: number } }) {
+  async createOrder(userId: string, payload: { items: Array<{ productId: string; quantity: number; price: number; variantId?: string }>; shippingAddress: any; notes?: string; totals: { subtotal: number; tax: number; shipping: number; discount: number; total: number }; paymentMethod?: string; paymentStatus?: string }) {
     const orderNumber = `ORD-${Date.now()}`;
     const order = await this.prisma.order.create({
       data: {
         orderNumber,
         userId,
         status: 'PENDING',
-        paymentStatus: 'PENDING',
-        paymentMethod: 'COD',
+        paymentStatus: (payload.paymentStatus as any) || 'PENDING',
+        paymentMethod: payload.paymentMethod || 'COD',
         subtotal: payload.totals.subtotal,
         tax: payload.totals.tax,
         shipping: payload.totals.shipping,
