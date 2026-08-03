@@ -15,15 +15,26 @@ async function bootstrap() {
 
     // CORS configuration - Allow specific origins for deployment and local development
     app.enableCors({
-      origin: [
-        'https://raw-era-frontend.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:5173',
-      ],
+      origin: (origin, callback) => {
+        const allowedOrigins = [
+          'https://raw-era-frontend.vercel.app',
+          'https://therawera.in',
+          'https://www.therawera.in',
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://localhost:5173',
+        ];
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
       exposedHeaders: ['Set-Cookie'],
+      optionsSuccessStatus: 204,
     });
 
     // Cookie parsing for httpOnly JWT cookies
