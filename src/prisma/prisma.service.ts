@@ -15,7 +15,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       console.log("[PROVIDER] PrismaService onModuleInit - connected successfully");
     } catch (error) {
       console.error("[PROVIDER] PrismaService onModuleInit - connection failed:", error.stack);
-      throw error;
+      // Do not throw the error here to allow the application to start up successfully.
+      // This ensures the port binding succeeds, the server is healthy, and it can respond to
+      // HTTP preflight requests even if the database is temporarily unavailable.
     }
   }
 
