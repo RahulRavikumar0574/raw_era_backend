@@ -32,7 +32,7 @@ async function bootstrap() {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'x-admin-token'],
       exposedHeaders: ['Set-Cookie'],
       optionsSuccessStatus: 204,
     });
