@@ -15,13 +15,13 @@
     "id": "returns-policy",
     "category": "returns",
     "keywords": ["return", "returns", "exchange", "send back"],
-    "content": "You can return any unused item within 30 days of delivery. Items must be unworn, unwashed, and in original packaging with tags attached. Customized or personalized items are not eligible for return unless defective."
+    "content": "You can return any unused item within 7 days of delivery. Items must be unworn, unwashed, and in original packaging with tags attached. Customized or personalized items are not eligible for return unless defective."
   },
   {
     "id": "refunds-policy",
     "category": "refunds",
     "keywords": ["refund", "money back", "reimbursement", "refund time"],
-    "content": "Refunds are processed within 5-7 business days after we receive and inspect your returned item. The amount is credited to your original payment method. COD orders receive refunds via bank transfer."
+    "content": "Refunds are processed within 5-7 business days after we receive and inspect your returned item. The amount is credited to your original payment method."
   },
   {
     "id": "bulk-orders",
@@ -50,8 +50,8 @@
   {
     "id": "payment-methods",
     "category": "payment",
-    "keywords": ["payment", "pay", "upi", "card", "cod", "cash on delivery", "razorpay"],
-    "content": "We accept UPI, credit/debit cards, net banking, wallets, and Cash on Delivery (COD) for orders up to ₹5,000. All online payments are secured via Razorpay and Stripe."
+    "keywords": ["payment", "pay", "upi", "card", "razorpay"],
+    "content": "We accept UPI, credit/debit cards, net banking, and wallets. All online payments are secured via Razorpay and Stripe."
   },
   {
     "id": "coupons",

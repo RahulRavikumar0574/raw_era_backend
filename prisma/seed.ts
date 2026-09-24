@@ -4,9 +4,10 @@ const prisma = new PrismaClient();
 
 async function main() {
   const categories = [
-    { name: "Men's", slug: 'mens', description: 'Mens apparel' },
-    { name: "Women's", slug: 'womens', description: 'Womens apparel' },
-    { name: 'Kids', slug: 'kids', description: 'Kids apparel' },
+    { name: "Unisex Topwear", slug: 'unisex', description: 'Unisex Topwear' },
+    { name: "Unisex Bottoms", slug: 'unisex-bottoms', description: 'Unisex Bottoms' },
+    { name: 'Accessories', slug: 'accessories', description: 'Accessories' },
+    { name: 'Footwear', slug: 'footwear', description: 'Footwear' },
   ];
 
   for (const [index, c] of categories.entries()) {
@@ -17,11 +18,11 @@ async function main() {
     });
   }
 
-  const mens = await prisma.category.findUnique({ where: { slug: 'mens' } });
-  const womens = await prisma.category.findUnique({ where: { slug: 'womens' } });
-  const kids = await prisma.category.findUnique({ where: { slug: 'kids' } });
+  const unisex = await prisma.category.findUnique({ where: { slug: 'unisex' } });
+  const unisexBottoms = await prisma.category.findUnique({ where: { slug: 'unisex-bottoms' } });
+  const accessories = await prisma.category.findUnique({ where: { slug: 'accessories' } });
 
-  if (!mens || !womens || !kids) throw new Error('Categories not found after creation');
+  if (!unisex || !unisexBottoms || !accessories) throw new Error('Categories not found after creation');
 
   async function addProduct(p: {
     name: string;
@@ -108,7 +109,7 @@ async function main() {
     price: 899,
     sku: 'TEE-OVR-CLASSIC-BLK',
     brand: 'Raw Era',
-    categoryId: mens.id,
+    categoryId: unisex.id,
     images: [
       { url: 'https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200', isPrimary: true },
     ],
@@ -129,7 +130,7 @@ async function main() {
     price: 1599,
     sku: 'HD-VTG-NVY',
     brand: 'Raw Era',
-    categoryId: mens.id,
+    categoryId: unisex.id,
     images: [
       { url: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1200', isPrimary: true },
     ],
@@ -142,7 +143,7 @@ async function main() {
     price: 1299,
     sku: 'DRS-FLR-SUM',
     brand: 'Raw Era',
-    categoryId: womens.id,
+    categoryId: unisex.id,
     images: [
       { url: 'https://images.unsplash.com/photo-1475180098004-ca77a66827be?q=80&w=1200', isPrimary: true },
     ],
@@ -156,7 +157,7 @@ async function main() {
     price: 599,
     sku: 'KID-TEE-CRT',
     brand: 'Raw Era',
-    categoryId: kids.id,
+    categoryId: unisex.id,
     images: [
       { url: 'https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200', isPrimary: true },
     ],
@@ -170,7 +171,7 @@ async function main() {
     price: 1099,
     sku: 'JG-Athl-GRY',
     brand: 'Raw Era',
-    categoryId: mens.id,
+    categoryId: unisexBottoms.id,
     images: [ { url: 'https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1200', isPrimary: true } ],
     tags: ['joggers', 'athleisure'],
   });
@@ -180,7 +181,7 @@ async function main() {
     price: 1799,
     sku: 'JK-WIND-LTBL',
     brand: 'Raw Era',
-    categoryId: mens.id,
+    categoryId: unisex.id,
     images: [ { url: 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?q=80&w=1200', isPrimary: true } ],
     tags: ['jacket', 'windbreaker'],
   });
@@ -190,7 +191,7 @@ async function main() {
     price: 799,
     sku: 'TEE-W-EDY',
     brand: 'Raw Era',
-    categoryId: womens.id,
+    categoryId: unisex.id,
     images: [ { url: 'https://images.unsplash.com/photo-1475180098004-ca77a66827be?q=80&w=1200', isPrimary: true } ],
     tags: ['tee', 'women'],
   });
@@ -200,7 +201,7 @@ async function main() {
     price: 499,
     sku: 'KID-SHRT-TRK',
     brand: 'Raw Era',
-    categoryId: kids.id,
+    categoryId: unisexBottoms.id,
     images: [ { url: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1200', isPrimary: true } ],
     tags: ['kids', 'shorts'],
   });
