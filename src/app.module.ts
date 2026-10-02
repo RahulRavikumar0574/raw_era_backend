@@ -19,6 +19,7 @@ import { ChatModule } from './chat/chat.module';
 import { CustomizationModule } from './customization/customization.module';
 import { UsersModule } from './users/users.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     CustomizationModule,
     UsersModule,
     AnalyticsModule,
+    NewsletterModule,
   ],
   controllers: [AppController],
   providers: [
