@@ -4,7 +4,6 @@
 
   "functions": {
     "api/index.js": {
-      "runtime": "@vercel/node",
       "includeFiles": "{dist/**,prisma/**}"
     }
   },
