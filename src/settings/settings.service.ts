@@ -13,6 +13,7 @@ export class SettingsService {
       'site.contact',
       'shipping.free_threshold',
       'shipping.base_rate',
+      'homepage.hero_image',
     ];
 
     const settings = await this.prisma.setting.findMany({

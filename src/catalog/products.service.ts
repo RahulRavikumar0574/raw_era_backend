@@ -169,6 +169,21 @@ export class ProductsService {
     const existing = await this.prisma.product.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Product ${id} not found`);
 
+    if (dto.images !== undefined) {
+      await this.prisma.productImage.deleteMany({ where: { productId: id } });
+      if (dto.images.length > 0) {
+        await this.prisma.productImage.createMany({
+          data: dto.images.map((img, i) => ({
+            productId: id,
+            url: img.url,
+            alt: img.alt || dto.name || existing.name,
+            isPrimary: img.isPrimary ?? i === 0,
+            order: img.order ?? i + 1,
+          })),
+        });
+      }
+    }
+
     const product = await this.prisma.product.update({
       where: { id },
       data: {
@@ -189,7 +204,7 @@ export class ProductsService {
         ...(dto.seoDescription !== undefined && { seoDescription: dto.seoDescription }),
       },
       include: {
-        images: true,
+        images: { orderBy: { order: 'asc' } },
         category: true,
         variants: true,
         specifications: true,

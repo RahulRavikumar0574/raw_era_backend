@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { SettingsService } from './settings.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 
 @Controller('settings')
 export class SettingsController {
@@ -12,14 +12,14 @@ export class SettingsController {
     return { settings };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   @Get(':key')
   async getSetting(@Param('key') key: string) {
     const setting = await this.settingsService.getSetting(key);
     return { setting };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   @Put(':key')
   async updateSetting(@Param('key') key: string, @Body() body: { value: any }) {
     const setting = await this.settingsService.updateSetting(key, body.value);
