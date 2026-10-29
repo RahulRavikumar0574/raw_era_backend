@@ -11,7 +11,7 @@ let cachedServer: Handler;
 
 async function bootstrap() {
   if (!cachedApp) {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, { bodyParser: false });
 
     // CORS configuration - Allow specific origins for deployment and local development
     app.enableCors({
@@ -43,6 +43,8 @@ async function bootstrap() {
     // Webhooks raw body (Razorpay + Stripe)
     app.use('/payments/webhook', bodyParser.raw({ type: '*/*' }));
     app.use('/payments/stripe/webhook', bodyParser.raw({ type: '*/*' }));
+    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
     // Swagger/OpenAPI setup
     const config = new DocumentBuilder()
