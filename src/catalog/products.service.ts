@@ -127,14 +127,27 @@ export class ProductsService {
           : undefined,
         variants: dto.variants?.length
           ? {
-              create: dto.variants.map((v) => ({
-                name: v.name,
-                type: v.type,
-                value: v.value,
-                price: v.price,
-                stock: v.stock ?? 0,
-                sku: v.sku,
-              })),
+              create: dto.variants.flatMap((v) => {
+                if (v.value && v.value.includes(',')) {
+                  const split = v.value.split(',').map((s) => s.trim()).filter(Boolean);
+                  return split.map((val) => ({
+                    name: v.name || 'Size',
+                    type: v.type,
+                    value: val,
+                    price: v.price,
+                    stock: v.stock ?? dto.stock ?? 0,
+                    sku: v.sku,
+                  }));
+                }
+                return [{
+                  name: v.name,
+                  type: v.type,
+                  value: v.value,
+                  price: v.price,
+                  stock: v.stock ?? dto.stock ?? 0,
+                  sku: v.sku,
+                }];
+              }),
             }
           : undefined,
         specifications: dto.specifications?.length
@@ -179,6 +192,65 @@ export class ProductsService {
             alt: img.alt || dto.name || existing.name,
             isPrimary: img.isPrimary ?? i === 0,
             order: img.order ?? i + 1,
+          })),
+        });
+      }
+    }
+
+    if (dto.variants !== undefined) {
+      await this.prisma.productVariant.deleteMany({ where: { productId: id } });
+      if (dto.variants.length > 0) {
+        const expandedVariants = dto.variants.flatMap((v) => {
+          if (v.value && v.value.includes(',')) {
+            const split = v.value.split(',').map((s) => s.trim()).filter(Boolean);
+            return split.map((val) => ({
+              productId: id,
+              name: v.name || 'Size',
+              type: v.type,
+              value: val,
+              price: v.price,
+              stock: v.stock ?? dto.stock ?? existing.stock ?? 0,
+              sku: v.sku,
+            }));
+          }
+          return [{
+            productId: id,
+            name: v.name,
+            type: v.type,
+            value: v.value,
+            price: v.price,
+            stock: v.stock ?? dto.stock ?? existing.stock ?? 0,
+            sku: v.sku,
+          }];
+        });
+
+        await this.prisma.productVariant.createMany({
+          data: expandedVariants,
+        });
+      }
+    }
+
+    if (dto.specifications !== undefined) {
+      await this.prisma.productSpecification.deleteMany({ where: { productId: id } });
+      if (dto.specifications.length > 0) {
+        await this.prisma.productSpecification.createMany({
+          data: dto.specifications.map((s) => ({
+            productId: id,
+            name: s.name,
+            value: s.value,
+            group: s.group,
+          })),
+        });
+      }
+    }
+
+    if (dto.tags !== undefined) {
+      await this.prisma.productTag.deleteMany({ where: { productId: id } });
+      if (dto.tags.length > 0) {
+        await this.prisma.productTag.createMany({
+          data: dto.tags.map((t) => ({
+            productId: id,
+            name: t,
           })),
         });
       }
